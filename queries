@@ -1,0 +1,197 @@
+USE neurochat_system;
+SHOW TABLES;
+CREATE TABLE users (
+    user_id INT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(50),
+    email VARCHAR(100),
+    country VARCHAR(50),
+    join_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE conversations (
+    conversation_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT,
+    user_message TEXT,
+    ai_response TEXT,
+    response_time_ms INT,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id)
+    REFERENCES users(user_id)
+);
+
+CREATE TABLE emotion_analysis (
+    emotion_id INT PRIMARY KEY AUTO_INCREMENT,
+    conversation_id INT,
+    detected_emotion VARCHAR(50),
+    confidence_score DECIMAL(5,2),
+
+    FOREIGN KEY (conversation_id)
+    REFERENCES conversations(conversation_id)
+);
+
+CREATE TABLE risk_detection (
+    risk_id INT PRIMARY KEY AUTO_INCREMENT,
+    conversation_id INT,
+    risk_level VARCHAR(20),
+    flagged_words VARCHAR(200),
+
+    FOREIGN KEY (conversation_id)
+    REFERENCES conversations(conversation_id)
+);
+
+CREATE TABLE feedback_system (
+    feedback_id INT PRIMARY KEY AUTO_INCREMENT,
+    conversation_id INT,
+    rating INT,
+    feedback_text VARCHAR(300),
+
+    FOREIGN KEY (conversation_id)
+    REFERENCES conversations(conversation_id)
+);
+
+CREATE TABLE ai_model_logs (
+    model_id INT PRIMARY KEY AUTO_INCREMENT,
+    conversation_id INT,
+    tokens_used INT,
+    accuracy_score DECIMAL(5,2),
+    generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (conversation_id)
+    REFERENCES conversations(conversation_id)
+);
+INSERT INTO users (username, email, country)
+VALUES
+('Nishini', 'nishini@gmail.com', 'India'),
+('Ramya', 'ramya@gmail.com', 'India'),
+('verzhnie', 'verzhnie@gmail.com', 'USA');
+
+INSERT INTO conversations
+(user_id, user_message, ai_response, response_time_ms)
+VALUES
+(1, 'I feel stressed today',
+ 'I am here to support you. Try taking deep breaths.',
+ 1200),
+
+(2, 'Suggest me AI projects',
+ 'You can build AI Chatbot Analytics System.',
+ 950),
+
+(3, 'I feel very happy today',
+ 'That is wonderful to hear!',
+ 700);
+
+INSERT INTO emotion_analysis
+(conversation_id, detected_emotion, confidence_score)
+VALUES
+(1, 'Stress', 92.50),
+(2, 'Curious', 88.20),
+(3, 'Happy', 97.10);
+
+INSERT INTO risk_detection
+(conversation_id, risk_level, flagged_words)
+VALUES
+(1, 'Medium', 'stressed'),
+(2, 'Low', 'none'),
+(3, 'Low', 'none');
+
+INSERT INTO feedback_system
+(conversation_id, rating, feedback_text)
+VALUES
+(1, 4, 'Helpful response'),
+(2, 5, 'Excellent AI suggestions'),
+(3, 5, 'Positive interaction');
+
+INSERT INTO ai_model_logs
+(conversation_id, tokens_used, accuracy_score)
+VALUES
+(1, 250, 94.50),
+(2, 180, 96.20),
+(3, 120, 98.00);
+SELECT * FROM users;
+-- JOIN QUERY
+
+SELECT 
+u.username,
+c.user_message,
+c.ai_response,
+e.detected_emotion,
+r.risk_level
+FROM users u
+JOIN conversations c
+ON u.user_id = c.user_id
+JOIN emotion_analysis e
+ON c.conversation_id = e.conversation_id
+JOIN risk_detection r
+ON c.conversation_id = r.conversation_id;
+
+
+-- VIEW
+
+CREATE VIEW chatbot_summary AS
+SELECT
+u.username,
+c.user_message,
+e.detected_emotion,
+r.risk_level,
+f.rating
+FROM users u
+JOIN conversations c
+ON u.user_id = c.user_id
+JOIN emotion_analysis e
+ON c.conversation_id = e.conversation_id
+JOIN risk_detection r
+ON c.conversation_id = r.conversation_id
+JOIN feedback_system f
+ON c.conversation_id = f.conversation_id;
+
+SELECT * FROM chatbot_summary;
+
+
+-- STORED PROCEDURE
+CREATE PROCEDURE GetUserChats()
+BEGIN
+SELECT username, user_message, ai_response
+FROM users u
+JOIN conversations c
+ON u.user_id = c.user_id;
+END //
+
+DELIMITER ;
+
+CALL GetUserChats();
+
+
+-- TRIGGER
+
+CREATE TABLE audit_log (
+log_id INT PRIMARY KEY AUTO_INCREMENT,
+action_text VARCHAR(255),
+action_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+DELIMITER //
+
+CREATE TRIGGER user_insert_trigger
+AFTER INSERT ON users
+FOR EACH ROW
+BEGIN
+INSERT INTO audit_log(action_text)
+VALUES ('New user inserted');
+END //
+
+DELIMITER ;
+
+INSERT INTO users(username,email,country)
+VALUES('Aisha','aisha@gmail.com','Canada');
+
+SELECT * FROM audit_log;
+
+
+-- WINDOW FUNCTION
+
+SELECT
+conversation_id,
+tokens_used,
+RANK() OVER (ORDER BY tokens_used DESC) AS token_rank
+FROM ai_model_logs;
